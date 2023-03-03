@@ -25,10 +25,6 @@ def mean_and_std(lst):
     return f'{mean:.2f}±{std:.2f}'
 
 
-global model_ckpt
-model_ckpt = ''
-
-
 class CL_Metric:
     def __init__(self, tasks):
 
@@ -151,8 +147,8 @@ class CL_Metric:
 
         mean_bt_score = np.mean(bt_score)
 
-        print(model_ckpt)
-        print('mean of sofar_task_f1_lst', np.mean(sofar_task_f1_lst))
+        # print(model_ckpt)
+        # print('mean of sofar_task_f1_lst', np.mean(sofar_task_f1_lst))
 
         sofar_task_f1_lst = np.hstack([sofar_task_f1_lst, mean_bt_score])[:, None]
         matrix = np.hstack([matrix, sofar_task_f1_lst])
@@ -163,35 +159,11 @@ class CL_Metric:
         print(repr(ori_matrix))
 
 
-
-describe = """Table Format
-                entity1_metric entity2_metric ... MicroF1 MacroF1
-Learn to Task1
-Learn to Task2
-...
-BI (backward interference / forgetting)
-"""
-print(describe)
-
-# remotely open the overview_metric.json in the server and parse, print the CL metric.
-ro232 = utils.Remote_Open('[ipaddress]', '[port]', '[user]', '[password]')
-ro232.set_default_dir('/home/zyn/SpanKL/model_ckpt/')
-
-model_ckpt = 'fewnerd-0-2022-07-20_11-56-28-7430-spankl_split_perm0'
-model_ckpt = 'onto-0-2022-07-21_10-02-57-1824-spankl_split_perm0'
-metrics_files = model_ckpt + '/overview_metric.json'
-metrics_json = ro232.load_json(metrics_files)
-test_metric = metrics_json['test_metric']
-filter_test_metric = metrics_json['filter_test_metric'] if 'filter_test_metric' in metrics_json else None
-
-# perm = 'perm0'
-perm = model_ckpt.split('_')[-1]
-
-
-def print_cl_metric(model_ckpt, test_metric, perm, filter_test_metric=None):
+def print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_metric=None):
     if model_ckpt.startswith('onto'):
         print('======onto======')
         print('task_best_dev_epo:', metrics_json['task_best_dev_epo']) if 'task_best_dev_epo' in metrics_json else None
+        print(model_ckpt)
         perm_ids = onto_sorted_ids_dct[perm]
         onto = sort_by_idx(onto_entity_task_lst, list(map(int, perm_ids)))
 
@@ -205,6 +177,7 @@ def print_cl_metric(model_ckpt, test_metric, perm, filter_test_metric=None):
     if model_ckpt.startswith('fewnerd'):
         print('======fewnerd======')
         print('task_best_dev_epo:', metrics_json['task_best_dev_epo']) if 'task_best_dev_epo' in metrics_json else None
+        print(model_ckpt)
         perm_ids = fewnerd_sorted_ids_dct[perm]
         fewnerd = sort_by_idx(fewnerd_entity_task_lst, list(map(int, perm_ids)))
         cl_metrics = CL_Metric(fewnerd)
@@ -213,4 +186,29 @@ def print_cl_metric(model_ckpt, test_metric, perm, filter_test_metric=None):
         cl_metrics.calc(filter_test_metric)
         cl_metrics.print('\n***Test Filter***', detail=True)
 
-print_cl_metric(model_ckpt, test_metric, perm, filter_test_metric)
+
+if __name__ == '__main__':
+    describe = """Table Format
+                    entity1_metric entity2_metric ... MicroF1 MacroF1
+    Learn to Task1
+    Learn to Task2
+    ...
+    BI (backward interference / forgetting)
+    """
+    print(describe)
+
+    # remotely open the overview_metric.json in the server and parse, print the CL metric.
+    ro232 = utils.Remote_Open('[ipaddress]', '[port]', '[user]', '[password]')
+    ro232.set_default_dir('/home/zyn/SpanKL/model_ckpt/')
+
+    model_ckpt = 'fewnerd-0-2022-07-20_11-56-28-7430-spankl_split_perm0'
+    model_ckpt = 'onto-0-2022-07-21_10-02-57-1824-spankl_split_perm0'
+    metrics_files = model_ckpt + '/overview_metric.json'
+    metrics_json = ro232.load_json(metrics_files)
+    test_metric = metrics_json['test_metric']
+    filter_test_metric = metrics_json['filter_test_metric'] if 'filter_test_metric' in metrics_json else None
+
+    # perm = 'perm0'
+    perm = model_ckpt.split('_')[-1]
+
+    print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_metric)
