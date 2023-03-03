@@ -1913,6 +1913,7 @@ class NerExample:
                 pred_ent_dct = obj['pred_ent_dct']
                 for k, pos_lst in pred_ent_dct.items():
                     for pos in pos_lst:
+                        start = pos[0]
                         if isinstance(pos[1], str):  # 精简模式 start, mention
                             mention = pos[1]
                             end = start
