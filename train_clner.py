@@ -97,6 +97,8 @@ def spankl_eval(model, test_dataloader, task_id, loader, info_str, mode='so_far'
         logger.info(f'{ent}:\t\tMicroF1:{v["mif1"]:.3%} MacroF1:{v["maf1"]:.3%}')
     # logger.info(f'***{info_str} | raw_mif1:{m["raw_mif1"]:.5f} raw_maf1:{m["raw_maf1"]:.5f} mif1:{m["mif1"]:.5f} maf1:{m["maf1"]:.5f}')
     logger.info(f'{info_str} Overall:\t\tMicroF1:{m["mif1"]:.3%} MacroF1:{m["maf1"]:.3%}')
+    final_macro_f1_over_task_level = mean([v["mif1"] for ent, v in new_detail_stat.items()])
+    logger.info(f'{info_str} Final MacroF1 over Task-Level:{final_macro_f1_over_task_level:.3%}')
     utils.NerExample.save_to_jsonl(tmp_exm_lst, f'{saving_exm_file}', only_pred_str=False, flat_pred_ent=True) if saving_exm_file is not None else None
     torch.save(probe_dct, save_prob_dct) if save_prob_dct else None
     return m
@@ -182,6 +184,8 @@ def baseline_ext_eval(model: modules.BaselineExtend, test_dataloader, task_id, l
     for ent, v in new_detail_stat.items():
         logger.info(f'{ent}:\t\tMicroF1:{v["mif1"]:.3%} MacroF1:{v["maf1"]:.3%}')
     logger.info(f'{info_str} Overall:\t\tMicroF1:{m["mif1"]:.3%} MacroF1:{m["maf1"]:.3%}')
+    final_macro_f1_over_task_level = mean([v["mif1"] for ent, v in new_detail_stat.items()])
+    logger.info(f'{info_str} Final MacroF1 over Task-Level:{final_macro_f1_over_task_level:.3%}')
     utils.NerExample.save_to_jsonl(tmp_exm_lst, f'{saving_exm_file}') if saving_exm_file is not None else None
     torch.save(probe_dct, save_prob_dct) if save_prob_dct else None
     return m
@@ -349,6 +353,8 @@ def baseline_add_eval(model: modules.BaselineAdd, test_dataloader, task_id, load
     for ent, v in new_detail_stat.items():
         logger.info(f'{ent}:\t\tMicroF1:{v["mif1"]:.3%} MacroF1:{v["maf1"]:.3%}')
     logger.info(f'{info_str} Overall:\t\tMicroF1:{m["mif1"]:.3%} MacroF1:{m["maf1"]:.3%}')
+    final_macro_f1_over_task_level = mean([v["mif1"] for ent, v in new_detail_stat.items()])
+    logger.info(f'{info_str} Final MacroF1 over Task-Level:{final_macro_f1_over_task_level:.3%}')
     utils.NerExample.save_to_jsonl(tmp_exm_lst, f'{saving_exm_file}') if saving_exm_file is not None else None
     torch.save(probe_dct, save_prob_dct) if save_prob_dct else None
     return m
@@ -360,6 +366,22 @@ def find_e(target, lst, end=1):
 
 def mean(lst):
     return sum(lst) / len(lst)
+
+def simply_print_cl_metric(model_ckpt):
+    """ load the recorded overview_metric.json data to compute CL metrics used in the paper
+        note that Few-NERD asks model to learn multiple entity types per task, and we use the microF1 over the entity types inner a task as this task's metric.
+        For every step in CL, we use macroF1 over all the learned tasks as the final metric (refer to section Metrics), for example:
+        Step1 is Micro(Task1)
+        Step2 is Macro( Micro(Task1), Micro(Task2))
+        Step3 is Macro( Micro(Task1), Micro(Task2), Micro(Task3))
+    """
+    from print_cl_metric import print_cl_metric
+    metrics_json = utils.load_json(f'{model_ckpt}/overview_metric.json')
+    model_ckpt = os.path.split(str(model_ckpt))[-1]
+    test_metric = metrics_json['test_metric']
+    filter_test_metric = metrics_json['filter_test_metric'] if 'filter_test_metric' in metrics_json else None
+    perm = model_ckpt.split('_')[-1]
+    print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_metric=filter_test_metric, print_repr=False, print_detail=False)
 
 
 def baseline_ner(model, loader, args, model_type, learn_mode='cl'):
@@ -484,6 +506,7 @@ def baseline_ner(model, loader, args, model_type, learn_mode='cl'):
             metrics['filter_test_metric'][task_id][ep]['micro_f1'] = m['mif1']
             metrics['filter_test_metric'][task_id][ep]['macro_f1'] = m['maf1']
         utils.save_json(metrics, f'{args.curr_ckpt_dir}/overview_metric.json')
+        simply_print_cl_metric(args.curr_ckpt_dir)
 
     return None
 
@@ -641,6 +664,7 @@ def spankl_ner(model: modules.SpanKL, loader: ner_loader, args, learn_mode='cl')
                     metrics['filter_test_metric'][task_id][ep]['micro_f1'] = m['mif1']
                     metrics['filter_test_metric'][task_id][ep]['macro_f1'] = m['maf1']
                 utils.save_json(metrics, f'{args.curr_ckpt_dir}/overview_metric.json')
+                simply_print_cl_metric(args.curr_ckpt_dir)
 
         if not args.test_per_epo:  # test performance finally
             if args.use_best_dev:  # load best dev to test
@@ -657,6 +681,7 @@ def spankl_ner(model: modules.SpanKL, loader: ner_loader, args, learn_mode='cl')
                 metrics['filter_test_metric'][task_id][ep]['micro_f1'] = m['mif1']
                 metrics['filter_test_metric'][task_id][ep]['macro_f1'] = m['maf1']
         utils.save_json(metrics, f'{args.curr_ckpt_dir}/overview_metric.json')
+        simply_print_cl_metric(args.curr_ckpt_dir)
 
         # save task_embed vector as .npz 保存task_embed向量到npz中
         if args.use_task_embed:
@@ -1029,11 +1054,11 @@ if __name__ == "__main__":
     if args.corpus == 'onto':
         args.perm_ids = onto_sorted_ids_dct[args.perm]
         args.batch_size = 32
-        args.num_epochs = 10
+        args.num_epochs = 2
     if args.corpus == 'fewnerd':
         args.perm_ids = fewnerd_sorted_ids_dct[args.perm]
         args.batch_size = 24
-        args.num_epochs = 5
+        args.num_epochs = 2
 
     logger.info(utils.header_format("Starting", sep='='))
 
@@ -1045,11 +1070,6 @@ if __name__ == "__main__":
     # eval_ckpt(args, existed_model_ckpt_dir='onto-0-2022-07-21_10-02-57-1824-spankl_split_perm0')
     # exit(0)
 
-    """print metric, see print_cl_metric.py"""
-    # model_ckpt = 'onto-0-2022-07-21_10-02-57-1824-spankl_split_perm0'
-    # metrics_json = utils.load_json(f'model_ckpt/{model_ckpt}/overview_metric.json')
-    # test_metric = metrics_json['test_metric']
-    # filter_test_metric = metrics_json['filter_test_metric'] if 'filter_test_metric' in metrics_json else None
-    # perm = model_ckpt.split('_')[-1]
-    # from print_cl_metric import print_cl_metric
-    # print_cl_metric(model_ckpt, test_metric, perm, filter_test_metric)
+    """print metric used in the paper, see print_cl_metric.py"""
+    # existed_model_ckpt_dir = 'model_ckpt/onto-0-2022-07-21_10-02-57-1824-spankl_split_perm0'
+    # simply_print_cl_metric(existed_model_ckpt_dir)

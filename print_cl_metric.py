@@ -26,7 +26,7 @@ def mean_and_std(lst):
 
 
 class CL_Metric:
-    def __init__(self, tasks):
+    def __init__(self, tasks, print_repr=False):
 
         self.tasks = tasks  # [[ent1,ent2],[ent3]]
         self.num_tasks = len(tasks)
@@ -38,6 +38,8 @@ class CL_Metric:
         for taskid, ents in enumerate(tasks):
             for ent in ents:
                 self.ent2taskid[ent] = taskid
+
+        self.print_repr = print_repr
 
     def aggregate_metrics(self, metrics_lst):
         # metrics_lst: [dict, dict]
@@ -155,11 +157,12 @@ class CL_Metric:
         matrix = np.hstack([matrix, macro_f1])
 
         print(matrix)
-        print(repr(matrix))
-        print(repr(ori_matrix))
+        if self.print_repr:
+            print(repr(matrix))
+            print(repr(ori_matrix))
 
 
-def print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_metric=None):
+def print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_metric=None, print_repr=False, print_detail=None):
     if model_ckpt.startswith('onto'):
         print('======onto======')
         print('task_best_dev_epo:', metrics_json['task_best_dev_epo']) if 'task_best_dev_epo' in metrics_json else None
@@ -167,7 +170,7 @@ def print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_met
         perm_ids = onto_sorted_ids_dct[perm]
         onto = sort_by_idx(onto_entity_task_lst, list(map(int, perm_ids)))
 
-        cl_metrics = CL_Metric(onto)
+        cl_metrics = CL_Metric(onto, print_repr=print_repr)
         cl_metrics.calc(test_metric)
         cl_metrics.print('\n***Test All***', detail=False)
         if filter_test_metric is not None:
@@ -175,16 +178,18 @@ def print_cl_metric(metrics_json, model_ckpt, test_metric, perm, filter_test_met
             cl_metrics.print('\n***Test Filter***', detail=False)
 
     if model_ckpt.startswith('fewnerd'):
+        detail = True if print_detail is None else print_detail
         print('======fewnerd======')
         print('task_best_dev_epo:', metrics_json['task_best_dev_epo']) if 'task_best_dev_epo' in metrics_json else None
         print(model_ckpt)
         perm_ids = fewnerd_sorted_ids_dct[perm]
         fewnerd = sort_by_idx(fewnerd_entity_task_lst, list(map(int, perm_ids)))
-        cl_metrics = CL_Metric(fewnerd)
+        cl_metrics = CL_Metric(fewnerd, print_repr=print_repr)
         cl_metrics.calc(test_metric)
-        cl_metrics.print('\n***Test All***', detail=True)
-        cl_metrics.calc(filter_test_metric)
-        cl_metrics.print('\n***Test Filter***', detail=True)
+        cl_metrics.print('\n***Test All***', detail=detail)
+        if filter_test_metric is not None:
+            cl_metrics.calc(filter_test_metric)
+            cl_metrics.print('\n***Test Filter***', detail=detail)
 
 
 if __name__ == '__main__':
