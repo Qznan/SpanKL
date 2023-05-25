@@ -43,6 +43,7 @@ Source code for AAAI 2023 paper: A Neural Span-Based Continual Named Entity Reco
 
 We provide the pre-processed datasets in `data/` DIR, which keep the same sample-task allocation for split setup experimented in the paper for reproduction.
 
+[Update 20230525🔥] We provide the zip file of `data/` as `data.zip` for convenient, since the original `data/` used LFS and need Github quota 😑. Please unzip it before running the code.😊
 ## 3. Training
 
 ```shell
