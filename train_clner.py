@@ -1054,11 +1054,11 @@ if __name__ == "__main__":
     if args.corpus == 'onto':
         args.perm_ids = onto_sorted_ids_dct[args.perm]
         args.batch_size = 32
-        args.num_epochs = 2
+        args.num_epochs = 10
     if args.corpus == 'fewnerd':
         args.perm_ids = fewnerd_sorted_ids_dct[args.perm]
         args.batch_size = 24
-        args.num_epochs = 2
+        args.num_epochs = 5
 
     logger.info(utils.header_format("Starting", sep='='))
 
