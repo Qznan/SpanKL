@@ -118,6 +118,19 @@ If you use this work or code, please kindly cite this paper:
   booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
   year={2023}
 }
+or
+@article{Zhang_Chen_2023,
+ title={A Neural Span-Based Continual Named Entity Recognition Model},
+ volume={37},
+ url={https://ojs.aaai.org/index.php/AAAI/article/view/26638},
+ DOI={10.1609/aaai.v37i11.26638},
+ number={11},
+ journal={Proceedings of the AAAI Conference on Artificial Intelligence},
+ author={Zhang, Yunan and Chen, Qingcai},
+ year={2023},
+ month={Jun.},
+ pages={13993-14001}
+ }
 ```
 
 
